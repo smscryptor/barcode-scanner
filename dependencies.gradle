@@ -1,0 +1,14 @@
+ext {
+
+    compileSDK = 26
+
+    androidBuildVersion = "26.0.0"
+    projectMaxSdkVersion = 26
+    projectMinSdkVersion = 21
+
+    junitVersion = '4.12'
+
+    testDependencies = [
+            junit: "junit:junit:$junitVersion",
+    ]
+}
