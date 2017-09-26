@@ -22,9 +22,9 @@ subprojects {
 allprojects {
 
     project.ext {
-        apiVersion = "1.0.0-SNAPSHOT"
+        apiVersion = "1.0.0"
         apiVersionCode = 1
-        apiRc = 0
+        apiRc = 1
 
         getVersionName = { suffix = '' ->
             return apiRc == 0 ? "${apiVersion}${suffix}" : "${apiVersion}${suffix}-RC${apiRc}"
