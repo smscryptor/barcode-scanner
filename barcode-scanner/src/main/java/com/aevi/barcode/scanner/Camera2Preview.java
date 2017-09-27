@@ -2,6 +2,7 @@ package com.aevi.barcode.scanner;
 
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.*;
 import android.hardware.camera2.params.StreamConfigurationMap;
@@ -13,6 +14,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.WindowManager;
 
 import java.util.Arrays;
 
@@ -32,13 +34,12 @@ public class Camera2Preview extends TextureView {
 
     SurfaceTextureListener surfaceTextureListener = new SurfaceTextureListener() {
         @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
             start();
         }
 
         @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
-
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
         }
 
         @Override
@@ -71,6 +72,7 @@ public class Camera2Preview extends TextureView {
                 captureRequestBuilder.addTarget(surface);
                 captureRequestBuilder.addTarget(imageReader.getSurface());
                 cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()), captureSessionStateCallback, null);
+                transform();
             } catch (CameraAccessException e) {
                 Log.e(TAG, "An error occured while opening a capture session", e);
             }
@@ -173,6 +175,13 @@ public class Camera2Preview extends TextureView {
             thread.quit();
             thread = null;
         }
+    }
+
+    private void transform() {
+        int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+        Matrix matrix = new Matrix();
+        matrix.postRotate(-90 * rotation, getWidth() / 2f, getHeight() / 2f);
+        setTransform(matrix);
     }
 
     private Size findOptimaleSize(Size[] sizes, int width, int height, double ratioDelta) {
