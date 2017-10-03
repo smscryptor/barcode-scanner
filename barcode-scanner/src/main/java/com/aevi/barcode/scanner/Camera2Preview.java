@@ -4,7 +4,12 @@ import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
-import android.hardware.camera2.*;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.os.Handler;
@@ -31,6 +36,7 @@ public class Camera2Preview extends TextureView {
     private Surface surface;
     private HandlerThread thread;
     private Handler handler;
+    private boolean cameraOpened = false;
 
     SurfaceTextureListener surfaceTextureListener = new SurfaceTextureListener() {
         @Override
@@ -63,6 +69,7 @@ public class Camera2Preview extends TextureView {
             }
 
             try {
+                cameraOpened = true;
                 camera = cameraDevice;
                 thread = new HandlerThread(Camera2Preview.class.getSimpleName());
                 thread.start();
@@ -85,6 +92,12 @@ public class Camera2Preview extends TextureView {
         }
 
         @Override
+        public void onClosed(CameraDevice camera) {
+            super.onClosed(camera);
+            cameraOpened = false;
+        }
+
+        @Override
         public void onDisconnected(CameraDevice cameraDevice) {
 
         }
@@ -99,8 +112,10 @@ public class Camera2Preview extends TextureView {
         @Override
         public void onConfigured(CameraCaptureSession cameraCaptureSession) {
             try {
-                captureSession = cameraCaptureSession;
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                if (cameraOpened) {
+                    captureSession = cameraCaptureSession;
+                    cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                }
             } catch (CameraAccessException e) {
                 Log.e(TAG, "An error occured while capturing", e);
             }
