@@ -56,6 +56,12 @@ public class Camera2Preview extends TextureView {
     CameraDevice.StateCallback cameraCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice cameraDevice) {
+            if (!isAvailable()) {
+                // If we're being disposed of as this callback is triggered, the texture may no longer be available. To avoid crashing in these cases,
+                // return immediately.
+                return;
+            }
+
             try {
                 camera = cameraDevice;
                 thread = new HandlerThread(Camera2Preview.class.getSimpleName());
