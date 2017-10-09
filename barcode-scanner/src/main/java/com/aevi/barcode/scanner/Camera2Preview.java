@@ -85,6 +85,12 @@ public class Camera2Preview extends TextureView {
         }
 
         @Override
+        public void onClosed(CameraDevice camera) {
+            super.onClosed(camera);
+            stop();
+        }
+
+        @Override
         public void onDisconnected(CameraDevice cameraDevice) {
 
         }
@@ -99,8 +105,10 @@ public class Camera2Preview extends TextureView {
         @Override
         public void onConfigured(CameraCaptureSession cameraCaptureSession) {
             try {
-                captureSession = cameraCaptureSession;
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                if (camera != null) {
+                    captureSession = cameraCaptureSession;
+                    cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                }
             } catch (CameraAccessException e) {
                 Log.e(TAG, "An error occured while capturing", e);
             }
