@@ -17,21 +17,19 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
         boolean onBarcodeScanned(String data);
     }
 
-    private final Camera2Preview preview;
-    private final OnBarcodeScannedListener listener;
     private final ImageScanner scanner;
     private final Handler mainHandler;
+    private Camera2Preview preview;
+    private OnBarcodeScannedListener listener;
     private byte[] buffer;
 
 
-    public BarcodeScanner(Camera2Preview preview, OnBarcodeScannedListener listener) {
-        this.preview = preview;
-        this.listener = listener;
+    public BarcodeScanner() {
         scanner = new ImageScanner();
         scanner.setConfig(0, Config.X_DENSITY, 3);
         scanner.setConfig(0, Config.Y_DENSITY, 3);
         mainHandler = new Handler(Looper.getMainLooper());
-        preview.setOnImageAvailableListener(this);
+
     }
 
     @Override
@@ -45,13 +43,28 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
                     @Override
                     public void run() {
                         if (listener != null && listener.onBarcodeScanned(data)) {
-                            preview.stop();
-                            mainHandler.removeCallbacksAndMessages(null);
+                            stopScanning();
                         }
                     }
                 });
             }
         }
+    }
+
+    public void startScanning(Camera2Preview preview, OnBarcodeScannedListener listener) {
+        this.preview = preview;
+        this.listener = listener;
+        preview.setOnImageAvailableListener(this);
+        preview.start();
+    }
+
+    public void stopScanning() {
+        if (preview != null) {
+            preview.stop();
+            preview = null;
+        }
+        listener = null;
+        mainHandler.removeCallbacksAndMessages(null);
     }
 
     private byte[] fetchMonochromeData(Image image) {
