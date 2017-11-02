@@ -1,0 +1,45 @@
+machine:
+  java:
+    version: openjdk8
+  environment:
+    _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
+    GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx1024m -XX:+HeapDumpOnOutOfMemoryError" -Dfile.encoding=UTF-8'
+    ANDROID_HOME: /usr/local/android-sdk-linux
+    SDK_MANAGER: $ANDROID_HOME/tools/bin/sdkmanager
+
+dependencies:
+  pre:
+    - echo y | android update sdk --no-ui --all --filter "tools"
+    - echo y | $SDK_MANAGER "build-tools;26.0.0"
+    - echo y | $SDK_MANAGER "platforms;android-26"
+    - echo y | $SDK_MANAGER "cmake;3.6.4111459"
+    - echo y | $SDK_MANAGER "ndk-bundle"
+    - /bin/bash writegradleprops.sh
+  cache_directories:
+    - ~/.android
+    - ~/.gradle
+    - /usr/local/android-sdk-linux
+
+test:
+  override:
+    - ./gradlew clean build test
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+    - find . -type f -regex ".*/test-results/.*/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
+
+
+deployment:
+    development:
+        branch: /.*release.*/
+        commands:
+            - ./gradlew assembleRelease publishReleasePublicationToQaRepository
+    production:
+        branch: master
+        commands:
+            - ./gradlew assembleRelease publishReleasePublicationToReleaseRepository
+
+general:
+  artifacts:
+    - "scanner/build/reports/jacoco/jacocoTestReport/html"
+    - "scanner/build/reports/tests/debug"
+    - "scanner/build/outputs/aar"

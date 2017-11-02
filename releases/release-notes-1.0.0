@@ -1,0 +1,7 @@
+## Version 1.0.0
+
+Library to easily create camera previews and scan QR codes
+
+Known Issues:
+
+When rotating multiple times in a row in a short period of time, sometimes the preview gets upside down
