@@ -2,6 +2,7 @@ package com.aevi.barcode.scanner;
 
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.*;
 import android.hardware.camera2.params.StreamConfigurationMap;
@@ -13,6 +14,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.WindowManager;
 
 import java.util.Arrays;
 
@@ -32,13 +34,12 @@ public class Camera2Preview extends TextureView {
 
     SurfaceTextureListener surfaceTextureListener = new SurfaceTextureListener() {
         @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
             start();
         }
 
         @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
-
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
         }
 
         @Override
@@ -55,6 +56,12 @@ public class Camera2Preview extends TextureView {
     CameraDevice.StateCallback cameraCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice cameraDevice) {
+            if (!isAvailable()) {
+                // If we're being disposed of as this callback is triggered, the texture may no longer be available. To avoid crashing in these cases,
+                // return immediately.
+                return;
+            }
+
             try {
                 camera = cameraDevice;
                 thread = new HandlerThread(Camera2Preview.class.getSimpleName());
@@ -71,9 +78,16 @@ public class Camera2Preview extends TextureView {
                 captureRequestBuilder.addTarget(surface);
                 captureRequestBuilder.addTarget(imageReader.getSurface());
                 cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()), captureSessionStateCallback, null);
+                transform();
             } catch (CameraAccessException e) {
                 Log.e(TAG, "An error occured while opening a capture session", e);
             }
+        }
+
+        @Override
+        public void onClosed(CameraDevice camera) {
+            super.onClosed(camera);
+            stop();
         }
 
         @Override
@@ -91,8 +105,10 @@ public class Camera2Preview extends TextureView {
         @Override
         public void onConfigured(CameraCaptureSession cameraCaptureSession) {
             try {
-                captureSession = cameraCaptureSession;
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                if (camera != null) {
+                    captureSession = cameraCaptureSession;
+                    cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                }
             } catch (CameraAccessException e) {
                 Log.e(TAG, "An error occured while capturing", e);
             }
@@ -173,6 +189,13 @@ public class Camera2Preview extends TextureView {
             thread.quit();
             thread = null;
         }
+    }
+
+    private void transform() {
+        int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+        Matrix matrix = new Matrix();
+        matrix.postRotate(-90 * rotation, getWidth() / 2f, getHeight() / 2f);
+        setTransform(matrix);
     }
 
     private Size findOptimaleSize(Size[] sizes, int width, int height, double ratioDelta) {
