@@ -39,23 +39,26 @@ public void onPause() {
 ### Barcode scanning
 Once you have a camere preview, it is pretty straightforward to scan barcodes, just create a barcode scanner object , passing the preview you have created earlier along with a barcode listener:
 ```java
-BarcodeScanner barcodeScanner = new BarcodeScanner(camera2Preview, new OnBarcodeScannedListener() {
-    @Override
-    boolean onBarcodeScanned(String data) {
-        // runs int the main thread, return true if the scanned information
-        // is valid and no subsequent call should be made to this listener
-    }
+BarcodeScanner barcodeScanner = new BarcodeScanner(};
+OnBarcodeScannedListener listener = new OnBarcodeScannedListener() {
+        @Override
+        boolean onBarcodeScanned(String data) {
+            // runs in the main thread, return true if the scanned information
+            // is valid and no subsequent call should be made to this listener
+        }
 });
+
+@Override
+public void onResume() {
+    super.onResume();
+    // startScanning will automatically start the camera preview
+    barcodeScanner.startScanning(camera2Preview, listener);
+}
+
+@Override
+public void onPause() {
+    super.onPause();
+    // stopScanning will automatically stop the camera preview
+    barcodeScanner.stopScanning();
+}
 ```
-
-
-
-
-
-
-
-
-
-
-
-
