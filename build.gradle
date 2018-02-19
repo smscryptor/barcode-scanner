@@ -23,8 +23,8 @@ allprojects {
 
     project.ext {
         apiVersion = "1.1.0"
-        apiVersionCode = 1006
-        apiRc = 1
+        apiVersionCode = 1008
+        apiRc = 0
 
         getVersionName = { suffix = '' ->
             return apiRc == 0 ? "${apiVersion}${suffix}" : "${apiVersion}${suffix}-RC${apiRc}"
