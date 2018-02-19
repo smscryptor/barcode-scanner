@@ -1,0 +1,10 @@
+## Version 1.1.0
+
+Bug fixes and minor improvments
+
+Changes and fixes:
+* Fixed black screen rotation issues
+* Limited the framerate at which QRcodes are scanned
+
+Known Issues:
+* When rotating multiple times in a row in a short period of time, sometimes the preview gets upside down

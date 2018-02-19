@@ -17,11 +17,14 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
         boolean onBarcodeScanned(String data);
     }
 
+    private static final long SCAN_DELAY_MILLIS = 500;
+
     private final ImageScanner scanner;
     private final Handler mainHandler;
     private Camera2Preview preview;
     private OnBarcodeScannedListener listener;
     private byte[] buffer;
+    private long lastScan;
 
 
     public BarcodeScanner() {
@@ -36,7 +39,7 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
     public void onImageAvailable(ImageReader imageReader) {
         Image image = imageReader.acquireLatestImage();
         if (image != null) {
-            final String data = checkForBarcodeData(fetchMonochromeData(image), image.getWidth(), image.getHeight());
+            final String data = scan(image);
             image.close();
             if (data != null) {
                 mainHandler.post(new Runnable() {
@@ -65,6 +68,16 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
         }
         listener = null;
         mainHandler.removeCallbacksAndMessages(null);
+    }
+
+    private String scan(Image image) {
+        long millis = System.currentTimeMillis();
+        if (millis - lastScan > SCAN_DELAY_MILLIS) {
+            lastScan = millis;
+            return checkForBarcodeData(fetchMonochromeData(image), image.getWidth(), image.getHeight());
+        } else {
+            return null;
+        }
     }
 
     private byte[] fetchMonochromeData(Image image) {
