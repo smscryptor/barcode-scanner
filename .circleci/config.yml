@@ -1,0 +1,144 @@
+version: 2
+
+generic:
+  - &job_config
+    docker:
+      - image: circleci/android:api-27-alpha
+    working_directory: ~/repo
+    environment:
+      _JAVA_OPTIONS: "-Xms516m -Xmx1024m"
+      GRADLE_OPTS: -Dorg.gradle.daemon=false
+  
+  - &attach_workspace
+    attach_workspace:
+      at: ~/
+      
+  - &init_ndk
+    restore_cache:
+      keys:
+        - v1-ndk-{{ checksum ".circleci/config.yml" }}
+        - v1-ndk-
+
+experimental:
+  notify:
+    branches:
+      only:
+        - develop
+        - master
+        - /.*release.*/
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - assemble-deploy-snapshot:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore:
+                - /.*release.*/
+                - master
+      - assemble-deploy-qa:
+          requires:
+            - build
+          filters:
+            branches:
+              only: /.*release.*/
+      - assemble-deploy-release:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+
+jobs:
+  build:
+    <<: *job_config
+    steps:
+      - run:
+          name: Setup AWS CLI
+          command: sudo pip install awscli
+      - checkout
+      - run:
+          name: Write gradle.properties
+          command: /bin/bash writegradleprops.sh
+      - *init_ndk
+      - run:
+          name: Setup CMake
+          command: echo y | sdkmanager "cmake;3.6.4111459"
+      - run:
+          name: Setup Android NDK
+          # note that version is missiong, if a new one is available manually increment the cache version
+          command: echo y | sdkmanager ndk-bundle
+      - save_cache:
+          paths:
+            - /opt/android/sdk/cmake
+            - /opt/android/sdk/ndk-bundle
+          key: v1-ndk-{{ checksum ".circleci/config.yml" }}
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "dependencies.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+      - run:
+          name: Download Android Dependencies
+          command: ./gradlew androidDependencies
+      - save_cache:
+          paths:
+            - ~/.gradle
+            - ~/.android
+          key: v1-dependencies-{{ checksum "dependencies.gradle" }}
+      - run:
+          name: Test
+          command: ./gradlew clean lint test
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - repo
+            - .gradle
+            - .android
+      # ********************************************
+      # Insert test artifacts to upload
+      # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      - store_artifacts:
+          path: barcode-scanner/build/reports
+      - store_test_results:
+          path: barcode-scanner/build/test-results
+      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  assemble-deploy-snapshot:
+    <<: *job_config
+    steps:
+      - *attach_workspace
+      - *init_ndk
+      # ********************************************
+      # Define tasks to run on normal branches
+      # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      - run: ./gradlew assembleDebug
+      - store_artifacts:
+          path: barcode-scanner/build/outputs/aar
+      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  assemble-deploy-qa:
+    <<: *job_config
+    steps:
+      - *attach_workspace
+      - *init_ndk
+      # ********************************************
+      # Define tasks to run on qa branches (release/*)
+      # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      - run: ./gradlew assembleRelease publishReleasePublicationToQaRepository
+      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  assemble-deploy-release:
+    <<: *job_config
+    steps:
+      - *attach_workspace
+      - *init_ndk
+      # ********************************************
+      # Define tasks to run on master branch
+      # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      - run: ./gradlew assembleRelease publishReleasePublicationToReleaseRepository
+      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
