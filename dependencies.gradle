@@ -1,8 +1,8 @@
 ext {
 
-    compileSDK = 26
+    compileSDK = 27
 
-    androidBuildVersion = "27.0.1"
+    androidBuildVersion = "27.0.3"
     projectMaxSdkVersion = 22
     projectMinSdkVersion = 21
 
