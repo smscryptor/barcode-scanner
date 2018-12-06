@@ -1,14 +1,23 @@
 ext {
 
-    compileSDK = 27
+    compileSDK = 28
 
-    androidBuildVersion = "27.0.3"
-    projectMaxSdkVersion = 22
+    androidBuildVersion = "28.0.3"
+    projectMaxSdkVersion = 28
     projectMinSdkVersion = 21
 
+    rxJavaVersion = '2.2.4'
+    rxAndroidVersion = '2.1.0'
     junitVersion = '4.12'
+    mockitoVersion = '2.23.0'
 
+    domainDependencies = [
+            rxJava: "io.reactivex.rxjava2:rxjava:$rxJavaVersion",
+            rxAndroid: "io.reactivex.rxjava2:rxandroid:$rxAndroidVersion"
+    ]
+    
     testDependencies = [
-            junit: "junit:junit:$junitVersion",
+            junit   :  "junit:junit:$junitVersion",
+            mockito : "org.mockito:mockito-core:$mockitoVersion",
     ]
 }
