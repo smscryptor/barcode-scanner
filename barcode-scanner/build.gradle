@@ -45,3 +45,10 @@ android {
         disable 'MissingPermission'
     }
 }
+
+dependencies {
+    implementation domainDependencies.rxJava
+    implementation domainDependencies.rxAndroid
+    testImplementation testDependencies.junit
+    testImplementation testDependencies.mockito
+}

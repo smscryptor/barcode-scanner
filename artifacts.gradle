@@ -1,14 +1,17 @@
-def setArtifactsName(variant, version, extension) {
-    variant.outputs.each { output ->
-        def newOutName = "${name}-${output.baseName}-${version}.${extension}"
-        output.outputFile = new File(output.outputFile.parent, newOutName)
+def setArtifactsName(base, variant, version, extension) {
+    variant.outputs.all { output ->
+        if (variant.productFlavors) {
+            outputFileName = "../${base}-${output.baseName}-${version}.${extension}"
+        } else {
+            outputFileName = "${base}-${output.baseName}-${version}.${extension}"
+        }
     }
 }
 
 if (android.hasProperty("applicationVariants")) {
-    android.applicationVariants.all { variant -> setArtifactsName(variant, variant.versionName, 'apk') }
+    android.applicationVariants.all { variant -> setArtifactsName("../${applicationName}", variant, variant.versionName, 'apk') }
 }
 
 if (android.hasProperty("libraryVariants")) {
-    android.libraryVariants.all { variant -> setArtifactsName(variant, getVersionName(), 'aar') }
+    android.libraryVariants.all { variant -> setArtifactsName("./${applicationName}", variant, getVersionName(), 'aar') }
 }

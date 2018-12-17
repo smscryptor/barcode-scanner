@@ -11,54 +11,38 @@ The project can be built using the standard gradle build process:
 
 ## Usage
 Start by defining the dependency in your _build.gradle_ file:
-`compile 'com.aevi.barcode:barcode-scanner:1.0.0'`
+`compile 'com.aevi.barcode:barcode-scanner:2.0.0'`
 
 ### Camera preview
-To create a camera preview in your activity / fragment, simply use the dedicated view, you can even embed it directly in your layout file:
+To create a camera preview in your activity / fragment, simply use the dedicated `Camera2Preview` view, you can embed it directly in your layout file:
 ```xml
 <com.aevi.barcode.scanner.Camera2Preview
         android:id="@+id/camera_preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 ```
-
-In order to get the preview working you will still need to start it manually and also stop it when not required:
-```java
-@Override
-public void onResume() {
-    super.onResume();
-    camera2Preview.start();
-}
-@Override
-public void onPause() {
-    super.onPause();
-    camera2Preview.stop();
-}
-```
+In order for the preview to start, you will still need to explictly call the `start()` method of `Camera2Preview` and subscribe to the returned `Observable`. This will return a `Disposable` which you will then be able to use in order to stop the preview. For a concrete example, refer to the next section.
 
 ### Barcode scanning
-Once you have a camere preview, it is pretty straightforward to scan barcodes, just create a barcode scanner object , passing the preview you have created earlier along with a barcode listener:
-```java
-BarcodeScanner barcodeScanner = new BarcodeScanner(};
-OnBarcodeScannedListener listener = new OnBarcodeScannedListener() {
-        @Override
-        boolean onBarcodeScanned(String data) {
-            // runs in the main thread, return true if the scanned information
-            // is valid and no subsequent call should be made to this listener
-        }
-});
+Once you have started the camera preview as described in the previous section, scanning QR codes is relatively simple. Just call `BarcodeObservable.create()` passing the `Observable` returned by the `Camera2Preview.start()` method and you will get notified whenever a valid QR code is scanned.
 
+```java
 @Override
 public void onResume() {
     super.onResume();
-    // startScanning will automatically start the camera preview
-    barcodeScanner.startScanning(camera2Preview, listener);
+    disposable = BarcodeObservable.create(camera2Preview.start(BarcodeObservable.IMAGE_FORMAT))
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(new Consumer<String>() {
+            @Override
+            public void accept(String content) throws Exception {
+                Log.d("QrActivity", "Scanned QR code: " + content);
+            }
+        });
 }
 
 @Override
 public void onPause() {
     super.onPause();
-    // stopScanning will automatically stop the camera preview
-    barcodeScanner.stopScanning();
+    disposable.dispose();
 }
 ```
