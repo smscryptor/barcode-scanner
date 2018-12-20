@@ -18,6 +18,9 @@ public class SurfaceTextureEmulator {
     private final SurfaceObservable.SurfaceFactory surfaceFactory = Mockito.spy(new SurfaceObservable.SurfaceFactory() {
         @Override
         public Surface create(SurfaceTexture surfaceTexture) {
+            if (surfaceTexture == null) {
+                throw new IllegalArgumentException("surfaceTexture must not be null");
+            }
             return surface;
         }
     });
@@ -37,11 +40,17 @@ public class SurfaceTextureEmulator {
 
     public void setAvailability(boolean value) {
         Mockito.doReturn(value).when(textureView).isAvailable();
+        Mockito.doReturn(surfaceTexture).when(textureView).getSurfaceTexture();
     }
 
     public void onSurfaceTextureAvailable() {
         Mockito.verify(textureView).setSurfaceTextureListener(captor.capture());
         captor.getValue().onSurfaceTextureAvailable(surfaceTexture, 100, 100);
+    }
+
+    public void onNullSurfaceTextureAvailable() {
+        Mockito.verify(textureView).setSurfaceTextureListener(captor.capture());
+        captor.getValue().onSurfaceTextureAvailable(null, 100, 100);
     }
 
     public void onSurfaceTextureDestroyed() {

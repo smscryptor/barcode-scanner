@@ -51,6 +51,17 @@ public class TestSurfaceObservable extends BaseTest {
     }
 
     @Test
+    public void doHandleNullSurfaceTexture() {
+        TestObserver<Surface> observer = SurfaceObservable.create(
+                windowManager, emulator.getTextureView(), mainHandler, emulator.getSurfaceFactory()).test();
+
+        emulator.onNullSurfaceTextureAvailable();
+        observer.dispose();
+
+        observer.assertNoValues();
+    }
+
+    @Test
     public void doCompleteUponSurfaceDestruction() {
         TestObserver<Surface> observer =
                 SurfaceObservable.create(windowManager, emulator.getTextureView(), mainHandler, emulator.getSurfaceFactory()).test();
