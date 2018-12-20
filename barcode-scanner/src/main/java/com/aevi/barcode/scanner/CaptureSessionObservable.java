@@ -3,12 +3,12 @@ package com.aevi.barcode.scanner;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.view.Surface;
+
+import java.util.List;
+
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.functions.Cancellable;
-
-import java.util.List;
 
 public class CaptureSessionObservable extends CameraCaptureSession.StateCallback implements ObservableOnSubscribe<CameraCaptureSession> {
 
@@ -30,12 +30,9 @@ public class CaptureSessionObservable extends CameraCaptureSession.StateCallback
     public void subscribe(ObservableEmitter<CameraCaptureSession> emitter) throws Exception {
         observableEmitter = emitter;
         if (!emitter.isDisposed()) {
-            observableEmitter.setCancellable(new Cancellable() {
-                @Override
-                public void cancel() throws Exception {
-                    if (captureSession != null) {
-                        captureSession.close();
-                    }
+            observableEmitter.setCancellable(() -> {
+                if (captureSession != null) {
+                    captureSession.close();
                 }
             });
 
@@ -46,7 +43,7 @@ public class CaptureSessionObservable extends CameraCaptureSession.StateCallback
     @Override
     public void onConfigured(CameraCaptureSession cameraCaptureSession) {
         captureSession = cameraCaptureSession;
-        if (this.observableEmitter != null && !this.observableEmitter.isDisposed()) {
+        if (observableEmitter != null && !observableEmitter.isDisposed()) {
             observableEmitter.onNext(captureSession);
         } else {
             captureSession.close();
@@ -60,6 +57,6 @@ public class CaptureSessionObservable extends CameraCaptureSession.StateCallback
 
     @Override
     public void onConfigureFailed(CameraCaptureSession cameraCaptureSession) {
-        observableEmitter.onError(new Exception("Failed to configure capture session"));
+        observableEmitter.tryOnError(new Exception("Failed to configure capture session"));
     }
 }

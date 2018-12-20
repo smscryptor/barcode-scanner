@@ -2,9 +2,12 @@ package com.aevi.barcode.scanner;
 
 import android.media.Image;
 import android.media.ImageReader;
-import io.reactivex.*;
-import io.reactivex.functions.Cancellable;
-import io.reactivex.functions.Consumer;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
+import io.reactivex.Scheduler;
 import io.reactivex.functions.Function;
 
 public class ImageObservable implements ImageReader.OnImageAvailableListener, ObservableOnSubscribe<ImageReader> {
@@ -14,18 +17,10 @@ public class ImageObservable implements ImageReader.OnImageAvailableListener, Ob
         if (scheduler != null) {
             observable = observable.observeOn(scheduler);
         }
-        return observable.concatMap(new Function<ImageReader, ObservableSource<Image>>() {
-            @Override
-            public ObservableSource<Image> apply(ImageReader imageReader) {
-                Image image = imageReader.acquireLatestImage();
-                return image == null ? Observable.<Image>empty() : Observable.just(image);
-            }
-        }).doAfterNext(new Consumer<Image>() {
-            @Override
-            public void accept(Image image) {
-                image.close();
-            }
-        });
+        return observable.concatMap((Function<ImageReader, ObservableSource<Image>>) reader -> {
+            Image image = reader.acquireLatestImage();
+            return image == null ? Observable.empty() : Observable.just(image);
+        }).doAfterNext(image -> image.close());
     }
 
     public final ImageReader imageReader;
@@ -42,19 +37,16 @@ public class ImageObservable implements ImageReader.OnImageAvailableListener, Ob
     public void subscribe(ObservableEmitter<ImageReader> emitter) {
         observableEmitter = emitter;
         if (!observableEmitter.isDisposed()) {
-            observableEmitter.setCancellable(new Cancellable() {
-                @Override
-                public void cancel() throws Exception {
-                    imageReader.getSurface().release();
-                    imageReader.close();
-                }
+            observableEmitter.setCancellable(() -> {
+                imageReader.getSurface().release();
+                imageReader.close();
             });
             imageReader.setOnImageAvailableListener(this, null);
         }
     }
 
     @Override
-    public void onImageAvailable(ImageReader imageReader) {
+    public synchronized void onImageAvailable(ImageReader imageReader) {
         long millis = System.currentTimeMillis();
         if (millis - lastEmitted > intervalMillis) {
             observableEmitter.onNext(imageReader);

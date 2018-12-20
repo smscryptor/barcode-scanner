@@ -1,52 +1,30 @@
 package com.aevi.barcode.scanner;
 
-import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
-import android.os.Handler;
 import android.view.Surface;
 
-import org.junit.After;
+import com.aevi.barcode.scanner.emulator.CameraEmulator;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Arrays;
 import java.util.List;
 
 import io.reactivex.observers.TestObserver;
 
-@RunWith(MockitoJUnitRunner.class)
-public class TestCaptureSessionObservable {
+public class TestCaptureSessionObservable extends BaseTest {
 
-    @Mock
-    CameraDevice cameraDevice;
-    @Mock
-    CameraCaptureSession cameraCaptureSession;
-    @Mock
-    Surface surface;
-    @Captor
-    ArgumentCaptor<CameraCaptureSession.StateCallback> captor;
-
-    final List<Surface> surfaces = Arrays.asList(surface);
-
-    final RxErrorHandler rxErrorHandler = new RxErrorHandler();
-
-    @After
-    public void tearDown() {
-        rxErrorHandler.assertNoErrors();
-    }
+    private final CameraDevice cameraDevice = Mockito.mock(CameraDevice.class);
+    private final List<Surface> surfaces = Arrays.asList(Mockito.mock(Surface.class));
+    private final CameraEmulator emulator = new CameraEmulator();
 
     @Test
-    public void doEmitCaptureSession() throws CameraAccessException {
+    public void doEmitCaptureSession() {
         TestObserver<CameraCaptureSession> observer = CaptureSessionObservable.create(cameraDevice, surfaces).test();
 
-        Mockito.verify(cameraDevice).createCaptureSession(Mockito.eq(surfaces), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onConfigured(cameraCaptureSession);
+        CameraCaptureSession cameraCaptureSession = emulator.onConfigured(cameraDevice, surfaces);
         observer.dispose();
 
         observer.assertValue(cameraCaptureSession);
@@ -54,24 +32,22 @@ public class TestCaptureSessionObservable {
     }
 
     @Test
-    public void doHandleDisposeBeforeCaptureSessionConfigured() throws CameraAccessException {
+    public void doHandleDisposeBeforeCaptureSessionConfigured() {
         TestObserver<CameraCaptureSession> observer = CaptureSessionObservable.create(cameraDevice, surfaces).test();
 
-        Mockito.verify(cameraDevice).createCaptureSession(Mockito.eq(surfaces), captor.capture(), Mockito.nullable(Handler.class));
         observer.dispose();
-        captor.getValue().onConfigured(cameraCaptureSession);
+        CameraCaptureSession cameraCaptureSession = emulator.onConfigured(cameraDevice, surfaces);
 
         observer.assertNoValues();
         Mockito.verify(cameraCaptureSession).close();
     }
 
     @Test
-    public void doCompleteUponCaptureSessionClosure() throws CameraAccessException {
+    public void doCompleteUponCaptureSessionClosure() {
         TestObserver<CameraCaptureSession> observer = CaptureSessionObservable.create(cameraDevice, surfaces).test();
 
-        Mockito.verify(cameraDevice).createCaptureSession(Mockito.eq(surfaces), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onConfigured(cameraCaptureSession);
-        captor.getValue().onClosed(cameraCaptureSession);
+        CameraCaptureSession cameraCaptureSession = emulator.onConfigured(cameraDevice, surfaces);
+        emulator.onClosed(cameraCaptureSession);
 
         observer.assertValue(cameraCaptureSession);
         observer.onComplete();
@@ -79,15 +55,17 @@ public class TestCaptureSessionObservable {
     }
 
     @Test
-    public void doEmitErrorUponConfigurationFailure() throws CameraAccessException {
+    public void doEmitErrorUponConfigurationFailure() {
         TestObserver<CameraCaptureSession> observer = CaptureSessionObservable.create(cameraDevice, surfaces).test();
 
-        Mockito.verify(cameraDevice).createCaptureSession(Mockito.eq(surfaces), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onConfigured(cameraCaptureSession);
-        captor.getValue().onConfigureFailed(cameraCaptureSession);
+        /*CameraCaptureSession cameraCaptureSession = emulator.onConfigured(null, surfaces);
+        emulator.onConfigureFailed(null, cameraCaptureSession);*/
 
-        observer.assertValue(cameraCaptureSession);
+        emulator.onConfigureFailed(cameraDevice, surfaces);
+
+        observer.assertNoValues();
+        observer.assertFailure(Exception.class);
         observer.assertError(Exception.class);
-        Mockito.verify(cameraCaptureSession).close();
+        // Mockito.verify(cameraCaptureSession).close();
     }
 }

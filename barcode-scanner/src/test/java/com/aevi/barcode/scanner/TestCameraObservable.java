@@ -1,94 +1,73 @@
 package com.aevi.barcode.scanner;
 
-import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraManager;
-import android.os.Handler;
 
-import org.junit.After;
-import org.junit.Before;
+import com.aevi.barcode.scanner.emulator.CameraEmulator;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import io.reactivex.observers.TestObserver;
 
-@RunWith(MockitoJUnitRunner.class)
-public class TestCameraObservable {
+public class TestCameraObservable extends BaseTest {
 
-    private static final String[] CAMERA_LIST = {
-            "backCamera",
-            "frontCamera"
-    };
-
-    @Mock
-    CameraManager cameraManager;
-    @Mock
-    CameraDevice cameraDevice;
-    @Captor
-    ArgumentCaptor<CameraDevice.StateCallback> captor;
-
-    final RxErrorHandler rxErrorHandler = new RxErrorHandler();
-
-    @Before
-    public void setup() throws CameraAccessException {
-        Mockito.doReturn(CAMERA_LIST).when(cameraManager).getCameraIdList();
-
-    }
-
-    @After
-    public void tearDown() {
-        Mockito.verify(cameraDevice).close();
-        rxErrorHandler.assertNoErrors();
-    }
+    private final CameraEmulator emulator = new CameraEmulator(CameraEmulator.CAMERA_LIST_SAMPLE);
 
     @Test
-    public void doEmitCameraOpening() throws CameraAccessException {
-        TestObserver<CameraDevice> observer = CameraObservable.create(cameraManager).test();
+    public void doEmitCameraOpening() {
+        TestObserver<CameraDevice> observer = CameraObservable.create(emulator.getCameraManager()).test();
 
-        Mockito.verify(cameraManager).openCamera(Mockito.eq(CAMERA_LIST[0]), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onOpened(cameraDevice);
+        CameraDevice cameraDevice = emulator.onOpened(CameraEmulator.CAMERA_LIST_SAMPLE[0]);
         observer.dispose();
 
         observer.assertValue(cameraDevice);
+        Mockito.verify(cameraDevice).close();
     }
 
     @Test
-    public void doHandleDisposeBeforeCameraOpening() throws CameraAccessException {
-        TestObserver<CameraDevice> observer = CameraObservable.create(cameraManager).test();
+    public void doHandleDisposeBeforeCameraOpening() {
+        TestObserver<CameraDevice> observer = CameraObservable.create(emulator.getCameraManager()).test();
 
-        Mockito.verify(cameraManager).openCamera(Mockito.eq(CAMERA_LIST[0]), captor.capture(), Mockito.nullable(Handler.class));
         observer.dispose();
-        captor.getValue().onOpened(cameraDevice);
+        CameraDevice cameraDevice = emulator.onOpened(CameraEmulator.CAMERA_LIST_SAMPLE[0]);
 
         observer.assertNoValues();
+        Mockito.verify(cameraDevice).close();
     }
 
     @Test
-    public void doCompleteUponCameraDisconnection() throws CameraAccessException {
-        TestObserver<CameraDevice> observer = CameraObservable.create(cameraManager).test();
+    public void doCompleteUponCameraDisconnection() {
+        TestObserver<CameraDevice> observer = CameraObservable.create(emulator.getCameraManager()).test();
 
-        Mockito.verify(cameraManager).openCamera(Mockito.eq(CAMERA_LIST[0]), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onOpened(cameraDevice);
-        captor.getValue().onDisconnected(cameraDevice);
+        CameraDevice cameraDevice = emulator.onOpened(CameraEmulator.CAMERA_LIST_SAMPLE[0]);
+        emulator.onDisconnected(cameraDevice);
 
         observer.assertValues(cameraDevice);
         observer.assertComplete();
+        Mockito.verify(cameraDevice).close();
     }
 
     @Test
-    public void doEmitErrorUponCameraError() throws CameraAccessException {
-        TestObserver<CameraDevice> observer = CameraObservable.create(cameraManager).test();
+    public void doEmitErrorUponCameraError() {
+        TestObserver<CameraDevice> observer = CameraObservable.create(emulator.getCameraManager()).test();
 
-        Mockito.verify(cameraManager).openCamera(Mockito.eq(CAMERA_LIST[0]), captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onOpened(cameraDevice);
-        captor.getValue().onError(cameraDevice, 1);
+        CameraDevice cameraDevice = emulator.onOpened(CameraEmulator.CAMERA_LIST_SAMPLE[0]);
+        emulator.onError(cameraDevice, 1);
 
         observer.assertValues(cameraDevice);
         observer.assertError(Exception.class);
+        Mockito.verify(cameraDevice, Mockito.times(2)).close();
+    }
+
+    @Test
+    public void doHandleDisposeBeforeCameraError() {
+        TestObserver<CameraDevice> observer = CameraObservable.create(emulator.getCameraManager()).test();
+
+        CameraDevice cameraDevice = emulator.onOpened(CameraEmulator.CAMERA_LIST_SAMPLE[0]);
+        observer.dispose();
+        emulator.onError(cameraDevice, 1);
+
+        observer.assertValues(cameraDevice);
+        Mockito.verify(cameraDevice, Mockito.times(2)).close();
     }
 }
