@@ -2,12 +2,7 @@ package com.aevi.barcode.scanner;
 
 import android.graphics.ImageFormat;
 import android.media.Image;
-import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Cancellable;
-import io.reactivex.functions.Consumer;
+
 import net.sourceforge.zbar.Config;
 import net.sourceforge.zbar.ImageScanner;
 import net.sourceforge.zbar.Symbol;
@@ -15,47 +10,29 @@ import net.sourceforge.zbar.SymbolSet;
 
 import java.nio.ByteBuffer;
 
-public class BarcodeObservable implements ObservableOnSubscribe<String>, Consumer<Image> {
+import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.ObservableTransformer;
+
+public class BarcodeScanner implements ObservableTransformer<Image, String> {
 
     public static final int IMAGE_FORMAT = ImageFormat.YUV_420_888;
 
-    public static Observable<String> create(Observable<Image> imageObservable) {
-        return Observable.create(new BarcodeObservable(imageObservable));
-    }
-
     private final ImageScanner scanner;
-    private final Observable<Image> imageObservable;
-    private volatile ObservableEmitter<String> observableEmitter;
-    private volatile Disposable disposable;
     private byte[] buffer;
 
-    private BarcodeObservable(Observable<Image> imageObservable) {
+    public BarcodeScanner() {
         scanner = new ImageScanner();
         scanner.setConfig(0, Config.X_DENSITY, 3);
         scanner.setConfig(0, Config.Y_DENSITY, 3);
-        this.imageObservable = imageObservable;
     }
 
     @Override
-    public void subscribe(ObservableEmitter<String> emitter) {
-        observableEmitter = emitter;
-        if (!observableEmitter.isDisposed()) {
-            observableEmitter.setCancellable(new Cancellable() {
-                @Override
-                public void cancel() {
-                    disposable.dispose();
-                }
-            });
-            disposable = imageObservable.subscribe(this);
-        }
-    }
-
-    @Override
-    public void accept(Image image) {
-        final String data = scan(image);
-        if (data != null) {
-            observableEmitter.onNext(data);
-        }
+    public ObservableSource<String> apply(Observable<Image> upstream) {
+        return upstream.flatMap(image -> {
+            final String data = scan(image);
+            return data != null ? Observable.just(data) : Observable.never();
+        });
     }
 
     private String scan(Image image) {

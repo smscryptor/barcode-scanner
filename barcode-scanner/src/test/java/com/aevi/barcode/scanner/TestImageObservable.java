@@ -1,44 +1,23 @@
 package com.aevi.barcode.scanner;
 
 import android.media.Image;
-import android.media.ImageReader;
-import android.os.Handler;
-import android.view.Surface;
-import io.reactivex.functions.Consumer;
-import io.reactivex.observers.TestObserver;
-import org.junit.Before;
+
+import com.aevi.barcode.scanner.emulator.ImageReaderEmulator;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
-@RunWith(MockitoJUnitRunner.class)
-public class TestImageObservable {
+import io.reactivex.observers.TestObserver;
 
-    @Mock
-    ImageReader imageReader;
-    @Mock
-    Image image;
-    @Mock
-    Surface surface;
-    @Captor
-    ArgumentCaptor<ImageReader.OnImageAvailableListener> captor;
+public class TestImageObservable extends BaseTest {
 
-    @Before
-    public void setup() {
-        Mockito.doReturn(image).when(imageReader).acquireLatestImage();
-        Mockito.doReturn(surface).when(imageReader).getSurface();
-    }
+    private final ImageReaderEmulator emulator = new ImageReaderEmulator();
 
     @Test
     public void doEmitImage() {
-        TestObserver<Image> observer = ImageObservable.create(imageReader, 0, null).test();
+        TestObserver<Image> observer = ImageObservable.create(emulator.getImageReader(), 0, null).test();
 
-        Mockito.verify(imageReader).setOnImageAvailableListener(captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onImageAvailable(imageReader);
+        Image image = emulator.onImageAvailable();
 
         observer.assertValue(image);
         Mockito.verify(image).close();
@@ -46,20 +25,13 @@ public class TestImageObservable {
 
     @Test
     public void doCloseImageUponException() {
-        ImageObservable.create(imageReader, 0, null).subscribe(new Consumer<Image>() {
-            @Override
-            public void accept(Image image) {
-                Mockito.verify(image, Mockito.never()).close();
-                throw new IllegalArgumentException("this is an exception!");
-            }
-        }, new Consumer<Throwable>() {
-            @Override
-            public void accept(Throwable throwable) throws Exception {
-            }
+        ImageObservable.create(emulator.getImageReader(), 0, null).subscribe(image -> {
+            Mockito.verify(image, Mockito.never()).close();
+            throw new IllegalArgumentException("this is an exception!");
+        }, throwable -> {
         });
 
-        Mockito.verify(imageReader).setOnImageAvailableListener(captor.capture(), Mockito.nullable(Handler.class));
-        captor.getValue().onImageAvailable(imageReader);
+        Image image = emulator.onImageAvailable();
 
         Mockito.verify(image).close();
     }

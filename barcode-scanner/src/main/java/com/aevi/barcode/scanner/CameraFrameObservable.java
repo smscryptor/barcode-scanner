@@ -1,102 +1,95 @@
 package com.aevi.barcode.scanner;
 
 import android.graphics.SurfaceTexture;
-import android.hardware.camera2.*;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.util.Pair;
 import android.util.Size;
 import android.view.Surface;
-import android.view.TextureView;
-import android.view.WindowManager;
+
+import java.util.Arrays;
+
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.ObservableSource;
+import io.reactivex.Scheduler;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.BiFunction;
-import io.reactivex.functions.Cancellable;
-import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
-
-import java.util.Arrays;
 
 public class CameraFrameObservable implements ObservableOnSubscribe<Image> {
 
-    public static Observable<Image> create(CameraManager cameraManager, WindowManager windowManager, TextureView textureView, int imageFormat) {
-        return Observable.create(new CameraFrameObservable(cameraManager, windowManager, textureView, imageFormat));
+    public interface ImageReaderFactory {
+
+        ImageReader create(int width, int height, int maxImages);
+    }
+
+    public static Observable<Image> create(CameraManager cameraManager, Observable<CameraDevice> cameraObservable,
+                                           Observable<Surface> surfaceTextureObservable, ImageReaderFactory imageReaderFactory, Scheduler scheduler) {
+        return Observable.create(new CameraFrameObservable(cameraManager, cameraObservable, surfaceTextureObservable, imageReaderFactory, scheduler));
+    }
+
+    private class Params {
+
+        final CameraDevice cameraDevice;
+        final Surface surface;
+
+        public Params(CameraDevice cameraDevice, Surface surface) {
+            this.cameraDevice = cameraDevice;
+            this.surface = surface;
+        }
     }
 
     private final CameraManager cameraManager;
-    private final WindowManager windowManager;
-    private final TextureView textureView;
-    private final int imageFormat;
-    private volatile ObservableEmitter<Image> observableEmitter;
+    private final Observable<CameraDevice> cameraObservable;
+    private final Observable<Surface> surfaceTextureObservable;
+    private final ImageReaderFactory imageReaderFactory;
+    private final Scheduler scheduler;
+    private volatile ObservableEmitter<? super Image> observableEmitter;
     private volatile Disposable disposable;
 
-    public CameraFrameObservable(CameraManager cameraManager, WindowManager windowManager, TextureView textureView, int imageFormat) {
+    public CameraFrameObservable(CameraManager cameraManager, Observable<CameraDevice> cameraObservable, Observable<Surface> surfaceTextureObservable,
+                                 ImageReaderFactory imageReaderFactory, Scheduler scheduler) {
         this.cameraManager = cameraManager;
-        this.windowManager = windowManager;
-        this.textureView = textureView;
-        this.imageFormat = imageFormat;
+        this.cameraObservable = cameraObservable;
+        this.surfaceTextureObservable = surfaceTextureObservable;
+        this.imageReaderFactory = imageReaderFactory;
+        this.scheduler = scheduler;
     }
 
     @Override
     public void subscribe(final ObservableEmitter<Image> emitter) {
         observableEmitter = emitter;
         if (!observableEmitter.isDisposed()) {
-            observableEmitter.setCancellable(new Cancellable() {
-                @Override
-                public void cancel() throws Exception {
-                    disposable.dispose();
-                }
-            });
+            observableEmitter.setCancellable(() -> disposable.dispose());
 
-            Observable<CameraDevice> cameraObservable = CameraObservable.create(cameraManager);
-            Observable<Surface> surfaceTextureObservable = SurfaceObservable.create(windowManager, textureView);
-
-            disposable = cameraObservable.zipWith(surfaceTextureObservable, new BiFunction<CameraDevice, Surface, Pair<CameraDevice, Surface>>() {
-                @Override
-                public Pair<CameraDevice, Surface> apply(CameraDevice cameraDevice, Surface surface) {
-                    return Pair.create(cameraDevice, surface);
-                }
-            }).concatMap(new Function<Pair<CameraDevice, Surface>, ObservableSource<ImageReader>>() {
-                @Override
-                public ObservableSource<ImageReader> apply(final Pair<CameraDevice, Surface> pair) throws Exception {
-                    Size imageReaderSize = findOptimaleSize(pair.first, 1080, 720, 0d);
-                    final ImageReader imageReader =
-                            ImageReader.newInstance(imageReaderSize.getWidth(), imageReaderSize.getHeight(), imageFormat, 2);
-                    return CaptureSessionObservable.create(pair.first, Arrays.asList(pair.second, imageReader.getSurface())).concatMap(
-                            new Function<CameraCaptureSession, ObservableSource<ImageReader>>() {
-                                @Override
-                                public ObservableSource<ImageReader> apply(CameraCaptureSession cameraCaptureSession) throws Exception {
-                                    CaptureRequest.Builder captureRequestBuilder =
-                                            cameraCaptureSession.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                                    captureRequestBuilder.addTarget(pair.second);
-                                    captureRequestBuilder.addTarget(imageReader.getSurface());
-                                    cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-                                    return Observable.just(imageReader);
-                                }
-                            }
-                    );
-                }
-            }).flatMap(new Function<ImageReader, ObservableSource<Image>>() {
-                @Override
-                public ObservableSource<Image> apply(ImageReader imageReader) {
-                    return ImageObservable.create(imageReader, 500, Schedulers.computation());
-                }
-            }).subscribe(new Consumer<Image>() {
-                @Override
-                public void accept(Image image) {
-                    observableEmitter.onNext(image);
-                }
-            });
+            disposable = cameraObservable.zipWith(surfaceTextureObservable, (cameraDevice, surface) -> new Params(cameraDevice, surface))
+                    .concatMap((Function<Params, ObservableSource<ImageReader>>) params -> {
+                        Size imageReaderSize = findOptimalSize(params.cameraDevice, 1080, 720, 0d);
+                        final ImageReader imageReader = imageReaderFactory.create(imageReaderSize.getWidth(), imageReaderSize.getHeight(), 3);
+                        return CaptureSessionObservable.create(params.cameraDevice, Arrays.asList(params.surface, imageReader.getSurface()))
+                                .concatMap((Function<CameraCaptureSession, ObservableSource<ImageReader>>) cameraCaptureSession -> {
+                                            CaptureRequest.Builder captureRequestBuilder =
+                                                    cameraCaptureSession.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                                            captureRequestBuilder.addTarget(params.surface);
+                                            captureRequestBuilder.addTarget(imageReader.getSurface());
+                                            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                                            return Observable.just(imageReader);
+                                        }
+                                );
+                    }).flatMap((Function<ImageReader, ObservableSource<Image>>) imageReader
+                            -> ImageObservable.create(imageReader, 500, scheduler))
+                    .subscribe(image -> observableEmitter.onNext(image), throwable -> observableEmitter.onError(throwable));
         }
     }
 
-    private Size findOptimaleSize(CameraDevice cameraDevice, int width, int height, double ratioDelta) throws CameraAccessException {
+    private Size findOptimalSize(CameraDevice cameraDevice, int width, int height, double ratioDelta) throws CameraAccessException {
         CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
         StreamConfigurationMap configuration = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
         Size[] sizes = configuration.getOutputSizes(SurfaceTexture.class);
