@@ -57,8 +57,8 @@ public class SurfaceObservable implements TextureView.SurfaceTextureListener, Ob
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-        surface = surfaceFactory.create(surfaceTexture);
-        if (observableEmitter != null && !observableEmitter.isDisposed()) {
+        if (surfaceTexture != null && observableEmitter != null && !observableEmitter.isDisposed()) {
+            surface = surfaceFactory.create(surfaceTexture);
             observableEmitter.onNext(surface);
         } else {
             textureView.setSurfaceTextureListener(null);
