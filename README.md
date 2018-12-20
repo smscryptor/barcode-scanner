@@ -30,14 +30,10 @@ Once you have started the camera preview as described in the previous section, s
 @Override
 public void onResume() {
     super.onResume();
-    disposable = BarcodeObservable.create(camera2Preview.start(BarcodeObservable.IMAGE_FORMAT))
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribe(new Consumer<String>() {
-            @Override
-            public void accept(String content) throws Exception {
-                Log.d("QrActivity", "Scanned QR code: " + content);
-            }
-        });
+    disposable = camera2Preview.start(BarcodeScanner.IMAGE_FORMAT)
+                    .compose(new BarcodeScanner())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(content -> Log.d("QrActivity", "Scanned QR code: " + content));
 }
 
 @Override
