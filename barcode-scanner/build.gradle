@@ -11,7 +11,7 @@ ext.artifactGroupId = "com.aevi.barcode"
 android {
     compileSdkVersion compileSDK
     buildToolsVersion androidBuildVersion
-
+    
     defaultConfig {
         minSdkVersion projectMinSdkVersion
         targetSdkVersion projectMaxSdkVersion
@@ -20,7 +20,7 @@ android {
         ndk {
             // Specifies the ABI configurations of your native
             // libraries Gradle should build and package with your APK.
-            abiFilters 'x86', 'armeabi', 'armeabi-v7a'
+            abiFilters 'x86', 'armeabi-v7a'
         }
     }
 
@@ -31,6 +31,11 @@ android {
         }
     }
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
     // Encapsulates your external native build configurations.
     externalNativeBuild {
 
@@ -44,4 +49,11 @@ android {
     lintOptions {
         disable 'MissingPermission'
     }
+}
+
+dependencies {
+    implementation domainDependencies.rxJava
+    implementation domainDependencies.rxAndroid
+    testImplementation testDependencies.junit
+    testImplementation testDependencies.mockito
 }

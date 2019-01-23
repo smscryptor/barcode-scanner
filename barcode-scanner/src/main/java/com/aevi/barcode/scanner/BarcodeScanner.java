@@ -1,9 +1,8 @@
 package com.aevi.barcode.scanner;
 
+import android.graphics.ImageFormat;
 import android.media.Image;
-import android.media.ImageReader;
-import android.os.Handler;
-import android.os.Looper;
+
 import net.sourceforge.zbar.Config;
 import net.sourceforge.zbar.ImageScanner;
 import net.sourceforge.zbar.Symbol;
@@ -11,73 +10,33 @@ import net.sourceforge.zbar.SymbolSet;
 
 import java.nio.ByteBuffer;
 
-public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
+import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.ObservableTransformer;
 
-    public interface OnBarcodeScannedListener {
-        boolean onBarcodeScanned(String data);
-    }
+public class BarcodeScanner implements ObservableTransformer<Image, String> {
 
-    private static final long SCAN_DELAY_MILLIS = 500;
+    public static final int IMAGE_FORMAT = ImageFormat.YUV_420_888;
 
     private final ImageScanner scanner;
-    private final Handler mainHandler;
-    private Camera2Preview preview;
-    private OnBarcodeScannedListener listener;
     private byte[] buffer;
-    private long lastScan;
-
 
     public BarcodeScanner() {
         scanner = new ImageScanner();
         scanner.setConfig(0, Config.X_DENSITY, 3);
         scanner.setConfig(0, Config.Y_DENSITY, 3);
-        mainHandler = new Handler(Looper.getMainLooper());
-
     }
 
     @Override
-    public void onImageAvailable(ImageReader imageReader) {
-        Image image = imageReader.acquireLatestImage();
-        if (image != null) {
+    public ObservableSource<String> apply(Observable<Image> upstream) {
+        return upstream.flatMap(image -> {
             final String data = scan(image);
-            image.close();
-            if (data != null) {
-                mainHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (listener != null && listener.onBarcodeScanned(data)) {
-                            stopScanning();
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    public void startScanning(Camera2Preview preview, OnBarcodeScannedListener listener) {
-        this.preview = preview;
-        this.listener = listener;
-        preview.setOnImageAvailableListener(this);
-        preview.start();
-    }
-
-    public void stopScanning() {
-        if (preview != null) {
-            preview.stop();
-            preview = null;
-        }
-        listener = null;
-        mainHandler.removeCallbacksAndMessages(null);
+            return data != null ? Observable.just(data) : Observable.never();
+        });
     }
 
     private String scan(Image image) {
-        long millis = System.currentTimeMillis();
-        if (millis - lastScan > SCAN_DELAY_MILLIS) {
-            lastScan = millis;
-            return checkForBarcodeData(fetchMonochromeData(image), image.getWidth(), image.getHeight());
-        } else {
-            return null;
-        }
+        return checkForBarcodeData(fetchMonochromeData(image), image.getWidth(), image.getHeight());
     }
 
     private byte[] fetchMonochromeData(Image image) {
@@ -98,7 +57,6 @@ public class BarcodeScanner implements ImageReader.OnImageAvailableListener {
         net.sourceforge.zbar.Image barcode = new net.sourceforge.zbar.Image(width, height, "Y800");
         barcode.setData(pixels);
         int result = scanner.scanImage(barcode);
-
         if (result != 0) {
             SymbolSet syms = scanner.getResults();
             for (Symbol sym : syms) {

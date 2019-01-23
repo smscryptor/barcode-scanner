@@ -23,7 +23,7 @@ add_library(
 
 	# Provides a relative path to your source file(s).
 	${jni-dir}/zbarjni.c
-  ${musl-locale-dir}/iconv.c
+    ${musl-locale-dir}/iconv.c
 	${zbar-dir}/img_scanner.c
 	${zbar-dir}/decoder.c
 	${zbar-dir}/image.c

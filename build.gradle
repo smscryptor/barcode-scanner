@@ -2,9 +2,10 @@
 buildscript {
     repositories {
         jcenter()
+        google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.3'
+        classpath 'com.android.tools.build:gradle:3.2.1'
     }
 }
 
@@ -22,8 +23,8 @@ subprojects {
 allprojects {
 
     project.ext {
-        apiVersion = "1.1.0"
-        apiVersionCode = 1008
+        apiVersion = "2.0.0"
+        apiVersionCode = 2002
         apiRc = 0
 
         getVersionName = { suffix = '' ->
@@ -32,20 +33,9 @@ allprojects {
     }
 
     repositories {
+        google()
+        jcenter()
         mavenCentral()
-        maven {
-            url 'https://oss.sonatype.org/content/repositories/snapshots/'
-        }
-        maven {
-            url 'https://dl.bintray.com/brettwold/maven/'
-        }
-        maven {
-            url "s3://sdk-snapshots.aevi.com/maven2"
-            credentials(AwsCredentials) {
-                accessKey aws_accessid
-                secretKey aws_accesskey
-            }
-        }
         maven {
             url "s3://sdk-releases.aevi.com/maven2"
             credentials(AwsCredentials) {

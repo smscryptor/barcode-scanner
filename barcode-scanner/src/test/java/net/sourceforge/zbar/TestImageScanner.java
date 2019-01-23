@@ -1,4 +1,6 @@
+package net.sourceforge.zbar;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.Before;
 import org.junit.After;
@@ -7,6 +9,7 @@ import org.junit.Assert.*;
 import net.sourceforge.zbar.ImageScanner;
 import net.sourceforge.zbar.Config;
 
+@Ignore
 public class TestImageScanner
 {
     protected ImageScanner scanner;

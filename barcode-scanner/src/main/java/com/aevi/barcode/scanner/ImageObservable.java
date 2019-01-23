@@ -1,0 +1,61 @@
+package com.aevi.barcode.scanner;
+
+import android.media.Image;
+import android.media.ImageReader;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
+import io.reactivex.Scheduler;
+import io.reactivex.functions.Function;
+
+public class ImageObservable implements ImageReader.OnImageAvailableListener, ObservableOnSubscribe<ImageReader> {
+
+    public static Observable<Image> create(ImageReader imageReader, long intervalMillis, Scheduler scheduler) {
+        Observable<ImageReader> observable = Observable.create(new ImageObservable(imageReader, intervalMillis));
+        if (scheduler != null) {
+            observable = observable.observeOn(scheduler);
+        }
+        return observable.concatMap((Function<ImageReader, ObservableSource<Image>>) reader -> {
+            Image image = reader.acquireLatestImage();
+            return image == null ? Observable.empty() : Observable.just(image);
+        }).doAfterNext(image -> image.close());
+    }
+
+    public final ImageReader imageReader;
+    public final long intervalMillis;
+    public long lastEmitted = 0;
+    private volatile ObservableEmitter<ImageReader> observableEmitter;
+
+    private ImageObservable(ImageReader imageReader, long intervalMillis) {
+        this.imageReader = imageReader;
+        this.intervalMillis = intervalMillis;
+    }
+
+    @Override
+    public void subscribe(ObservableEmitter<ImageReader> emitter) {
+        observableEmitter = emitter;
+        if (!observableEmitter.isDisposed()) {
+            observableEmitter.setCancellable(() -> {
+                imageReader.getSurface().release();
+                imageReader.close();
+            });
+            imageReader.setOnImageAvailableListener(this, null);
+        }
+    }
+
+    @Override
+    public synchronized void onImageAvailable(ImageReader imageReader) {
+        long millis = System.currentTimeMillis();
+        if (millis - lastEmitted > intervalMillis) {
+            observableEmitter.onNext(imageReader);
+            lastEmitted = millis;
+        } else {
+            Image image = imageReader.acquireLatestImage();
+            if (image != null) {
+                image.close();
+            }
+        }
+    }
+}
