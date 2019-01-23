@@ -1,0 +1,11 @@
+## Version 2.0.0
+
+Migrated to a Java RX based interface
+
+Changes and fixes:
+* Library interface is now based on Java RX for easier multi-threading and increased flexibility
+* Bug fix about the preview being sometimes upside down if quickly rotated from 0 to 180 degrees on some devices
+* Added unit tests
+
+Known Issues:
+* Camera gets closed and re-opened on screen rotation causing some device to make a 'click' noise
