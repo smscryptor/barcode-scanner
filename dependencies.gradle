@@ -6,10 +6,10 @@ ext {
     projectMaxSdkVersion = 28
     projectMinSdkVersion = 21
 
-    rxJavaVersion = '2.2.4'
-    rxAndroidVersion = '2.1.0'
+    rxJavaVersion = '2.2.8'
+    rxAndroidVersion = '2.1.1'
     junitVersion = '4.12'
-    mockitoVersion = '2.23.0'
+    mockitoVersion = '2.27.0'
 
     domainDependencies = [
             rxJava: "io.reactivex.rxjava2:rxjava:$rxJavaVersion",

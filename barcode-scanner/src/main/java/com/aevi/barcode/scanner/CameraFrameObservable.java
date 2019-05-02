@@ -1,27 +1,17 @@
 package com.aevi.barcode.scanner;
 
 import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.*;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.util.Size;
 import android.view.Surface;
-
-import java.util.Arrays;
-
-import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.ObservableSource;
-import io.reactivex.Scheduler;
+import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
+
+import java.util.Arrays;
 
 public class CameraFrameObservable implements ObservableOnSubscribe<Image> {
 
@@ -33,17 +23,6 @@ public class CameraFrameObservable implements ObservableOnSubscribe<Image> {
     public static Observable<Image> create(CameraManager cameraManager, Observable<CameraDevice> cameraObservable,
                                            Observable<Surface> surfaceTextureObservable, ImageReaderFactory imageReaderFactory, Scheduler scheduler) {
         return Observable.create(new CameraFrameObservable(cameraManager, cameraObservable, surfaceTextureObservable, imageReaderFactory, scheduler));
-    }
-
-    private class Params {
-
-        final CameraDevice cameraDevice;
-        final Surface surface;
-
-        public Params(CameraDevice cameraDevice, Surface surface) {
-            this.cameraDevice = cameraDevice;
-            this.surface = surface;
-        }
     }
 
     private final CameraManager cameraManager;
@@ -69,15 +48,17 @@ public class CameraFrameObservable implements ObservableOnSubscribe<Image> {
         if (!observableEmitter.isDisposed()) {
             observableEmitter.setCancellable(() -> disposable.dispose());
 
-            disposable = cameraObservable.zipWith(surfaceTextureObservable, (cameraDevice, surface) -> new Params(cameraDevice, surface))
-                    .concatMap((Function<Params, ObservableSource<ImageReader>>) params -> {
-                        Size imageReaderSize = findOptimalSize(params.cameraDevice, 1080, 720, 0d);
+            disposable = cameraObservable.zipWith(surfaceTextureObservable, (cameraDevice, surface) -> Tuple.of(cameraDevice, surface))
+                    .concatMap(params -> {
+                        CameraDevice camera = params.t1;
+                        Surface surface = params.t2;
+                        Size imageReaderSize = findOptimalSize(camera, 1080, 720, 0d);
                         final ImageReader imageReader = imageReaderFactory.create(imageReaderSize.getWidth(), imageReaderSize.getHeight(), 3);
-                        return CaptureSessionObservable.create(params.cameraDevice, Arrays.asList(params.surface, imageReader.getSurface()))
+                        return CaptureSessionObservable.create(camera, Arrays.asList(surface, imageReader.getSurface()))
                                 .concatMap((Function<CameraCaptureSession, ObservableSource<ImageReader>>) cameraCaptureSession -> {
                                             CaptureRequest.Builder captureRequestBuilder =
                                                     cameraCaptureSession.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                                            captureRequestBuilder.addTarget(params.surface);
+                                            captureRequestBuilder.addTarget(surface);
                                             captureRequestBuilder.addTarget(imageReader.getSurface());
                                             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
                                             return Observable.just(imageReader);
