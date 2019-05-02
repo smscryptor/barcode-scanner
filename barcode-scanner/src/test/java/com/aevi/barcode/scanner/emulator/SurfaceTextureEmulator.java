@@ -3,9 +3,7 @@ package com.aevi.barcode.scanner.emulator;
 import android.graphics.SurfaceTexture;
 import android.view.Surface;
 import android.view.TextureView;
-
 import com.aevi.barcode.scanner.SurfaceObservable;
-
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -28,6 +26,10 @@ public class SurfaceTextureEmulator {
 
     public TextureView getTextureView() {
         return textureView;
+    }
+
+    public SurfaceTexture getSurfaceTexture() {
+        return surfaceTexture;
     }
 
     public SurfaceObservable.SurfaceFactory getSurfaceFactory() {
@@ -55,9 +57,5 @@ public class SurfaceTextureEmulator {
 
     public void onSurfaceTextureDestroyed() {
         captor.getValue().onSurfaceTextureDestroyed(surfaceTexture);
-    }
-
-    public void assertNoSurfaceCreated() {
-        Mockito.verify(surfaceFactory, Mockito.never()).create(surfaceTexture);
     }
 }

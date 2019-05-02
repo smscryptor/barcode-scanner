@@ -5,19 +5,16 @@ import android.hardware.camera2.CameraDevice;
 import android.media.Image;
 import android.view.Surface;
 import android.view.WindowManager;
-
 import com.aevi.barcode.scanner.emulator.CameraEmulator;
 import com.aevi.barcode.scanner.emulator.ImageReaderEmulator;
 import com.aevi.barcode.scanner.emulator.SurfaceTextureEmulator;
-
+import io.reactivex.observers.TestObserver;
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
 import java.util.List;
-
-import io.reactivex.observers.TestObserver;
 
 public class TestCameraFrameObservable extends BaseTest {
 
@@ -60,8 +57,7 @@ public class TestCameraFrameObservable extends BaseTest {
     private TestObserver<Image> setupObserver() {
         return CameraFrameObservable.create(cameraEmulator.getCameraManager(),
                 CameraObservable.create(cameraEmulator.getCameraManager()),
-                SurfaceObservable
-                        .create(windowManager, surfaceEmulator.getTextureView(), mainHandler, surfaceEmulator.getSurfaceFactory()),
+                SurfaceObservable.create(SurfaceTextureObservable.create(surfaceEmulator.getTextureView(), mainHandler), surfaceEmulator.getSurfaceFactory()),
                 (width, height, maxImages) -> imageReaderEmulator.getImageReader(), null).test();
     }
 }
