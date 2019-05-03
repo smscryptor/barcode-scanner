@@ -21,11 +21,9 @@ import io.reactivex.schedulers.Schedulers;
 
 public class Camera2Preview extends TextureView {
 
-    private static final int DEFAULT_SENSOR_ORIENTATION = 90;
-
     private CameraManager cameraManager;
     private WindowManager windowManager;
-    private int sensorOrientation = DEFAULT_SENSOR_ORIENTATION;
+    private int sensorOrientation = 0;
 
 
     public Camera2Preview(Context context) {
@@ -58,13 +56,16 @@ public class Camera2Preview extends TextureView {
 
     private void onCameraOpened(CameraDevice cameraDevice) throws CameraAccessException {
         CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
-        sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+        sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) - 90;
+        if (sensorOrientation < 0) {
+            sensorOrientation = 0;
+        }
         transform(Callback.SIZE_CHANGED);
     }
 
     private void transform(Callback callback) {
         if (Callback.AVAILABLE.equals(callback) || Callback.SIZE_CHANGED.equals(callback)) {
-            int rotation = sensorOrientation - DEFAULT_SENSOR_ORIENTATION * (1 + windowManager.getDefaultDisplay().getRotation());
+            int rotation = sensorOrientation - 90 * windowManager.getDefaultDisplay().getRotation();
             Matrix matrix = new Matrix();
             matrix.postRotate(rotation, getWidth() / 2f, getHeight() / 2f);
             setTransform(matrix);
