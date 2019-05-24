@@ -1,0 +1,31 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion compileSDK
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        applicationId "com.aevi.barcode.sample"
+        minSdkVersion projectMinSdkVersion
+        targetSdkVersion projectMaxSdkVersion
+        versionCode project.apiVersionCode
+        versionName project.getVersionName()
+    }
+
+    buildTypes {
+        release {
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(":barcode-scanner")
+    implementation presentationDependencies.appCompat
+    implementation domainDependencies.rxAndroid
+}

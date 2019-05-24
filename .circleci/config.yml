@@ -3,7 +3,7 @@ version: 2
 generic:
   - &job_config
     docker:
-      - image: circleci/android:api-28-alpha
+      - image: circleci/android:api-28
     working_directory: ~/repo
     environment:
       _JAVA_OPTIONS: "-Xms516m -Xmx1024m"
@@ -37,9 +37,7 @@ workflows:
             - build
           filters:
             branches:
-              ignore:
-                - /.*release.*/
-                - master
+              only: develop
       - assemble-deploy-qa:
           requires:
             - build
@@ -61,9 +59,6 @@ jobs:
           name: Setup AWS CLI
           command: sudo pip install awscli
       - checkout
-      - run:
-          name: Write gradle.properties
-          command: /bin/bash writegradleprops.sh
       - *init_ndk
       - run:
           name: Setup CMake
@@ -116,9 +111,7 @@ jobs:
       # ********************************************
       # Define tasks to run on normal branches
       # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      - run: ./gradlew assembleDebug
-      - store_artifacts:
-          path: barcode-scanner/build/outputs/aar
+      - run: ./gradlew assmbleRelease publishReleasePublicationToSnapshotRepository
       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   assemble-deploy-qa:
@@ -140,5 +133,5 @@ jobs:
       # ********************************************
       # Define tasks to run on master branch
       # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      - run: ./gradlew assembleRelease publishReleasePublicationToReleaseRepository
+      - run: ./gradlew assembleRelease publishReleasePublicationToReleaseRepository bintrayUpload
       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

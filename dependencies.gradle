@@ -6,18 +6,16 @@ ext {
     projectMaxSdkVersion = 28
     projectMinSdkVersion = 21
 
-    rxJavaVersion = '2.2.4'
-    rxAndroidVersion = '2.1.0'
-    junitVersion = '4.12'
-    mockitoVersion = '2.23.0'
+    presentationDependencies = [
+            appCompat         : "androidx.appcompat:appcompat:1.0.2"
+    ]
 
     domainDependencies = [
-            rxJava: "io.reactivex.rxjava2:rxjava:$rxJavaVersion",
-            rxAndroid: "io.reactivex.rxjava2:rxandroid:$rxAndroidVersion"
+            rxAndroid: "io.reactivex.rxjava2:rxandroid:2.1.1"
     ]
     
     testDependencies = [
-            junit   :  "junit:junit:$junitVersion",
-            mockito : "org.mockito:mockito-inline:$mockitoVersion",
+            junit   :  "junit:junit:4.12",
+            mockito : "org.mockito:mockito-inline:2.27.0",
     ]
 }

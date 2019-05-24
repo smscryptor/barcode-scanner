@@ -1,0 +1,79 @@
+apply plugin: 'maven-publish'
+apply from: '../artifacts.gradle'
+
+publishing {
+    repositories {
+        if (System.getenv("AEVI_ARTIFACTORY_AWS_ACCESS_ID") != null 
+                && System.getenv("AEVI_ARTIFACTORY_AWS_SECRET") != null ) {
+            maven {
+                name 'release'
+                url "s3://sdk-releases.aevi.com/maven2"
+                credentials(AwsCredentials) {
+                    accessKey System.getenv("AEVI_ARTIFACTORY_AWS_ACCESS_ID")
+                    secretKey System.getenv("AEVI_ARTIFACTORY_AWS_SECRET")
+                }
+            }
+            maven {
+                name 'qa'
+                url "s3://sdk-qa.aevi.com/maven2"
+                credentials(AwsCredentials) {
+                    accessKey System.getenv("AEVI_ARTIFACTORY_AWS_ACCESS_ID")
+                    secretKey System.getenv("AEVI_ARTIFACTORY_AWS_SECRET")
+                }
+            }
+            maven {
+                name 'snapshot'
+                url "s3://sdk-snapshots.aevi.com/maven2"
+                credentials(AwsCredentials) {
+                    accessKey System.getenv("AEVI_ARTIFACTORY_AWS_ACCESS_ID")
+                    accessKey System.getenv("AEVI_ARTIFACTORY_AWS_SECRET")
+                }
+            }
+        }
+    }
+
+    publications {
+        if (android.hasProperty('applicationVariants')) {
+            android.applicationVariants.all { variant ->
+                variant.outputs.each { output ->
+                    "${variant.name}"(MavenPublication) {
+                        groupId artifactGroupId
+                        version variant.versionName
+                        artifactId "${artifactIdPrefix}-${output.baseName}"
+                        artifact("${project.buildDir}/outputs/apk/${applicationName}-${output.baseName}-${variant.versionName}.apk")
+                    }
+                }
+            }
+        }
+
+        if (android.hasProperty('libraryVariants')) {
+            android.libraryVariants.all { variant ->
+                variant.outputs.each { output ->
+                    "${variant.name}"(MavenPublication) {
+                        groupId artifactGroupId
+                        version getVersionName()
+                        artifactId "${artifactIdPrefix}"
+                        artifact("${project.buildDir}/outputs/aar/${applicationName}-${output.baseName}-${getVersionName()}.aar")
+
+                        pom.withXml {
+                            // Define this explicitly if using implementation or api configurations
+                            def dependenciesNode = asNode().getAt('dependencies')[0] ?: asNode().appendNode('dependencies')
+                            // Iterate over the implementation dependencies (we don't want the test ones), adding a <dependency> node for each
+                            configurations.implementation.allDependencies.each {
+                                // Ensure dependencies such as fileTree are not included.
+                                if (it.name != 'unspecified') {
+                                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                                    dependencyNode.appendNode('groupId', it.group)
+                                    dependencyNode.appendNode('artifactId', it.name)
+                                    dependencyNode.appendNode('version', it.version)
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+            }
+        }
+
+    }
+}

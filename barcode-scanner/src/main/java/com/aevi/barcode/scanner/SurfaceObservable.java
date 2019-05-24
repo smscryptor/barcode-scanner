@@ -1,88 +1,53 @@
+/*
+ * Copyright (c) 2019 AEVI International GmbH. All rights reserved
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301  USA
+ */
 package com.aevi.barcode.scanner;
 
-import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
-import android.os.Handler;
 import android.view.Surface;
-import android.view.TextureView;
-import android.view.WindowManager;
+
+import com.aevi.barcode.scanner.SurfaceTextureObservable.Callback;
+import com.aevi.barcode.scanner.Tuple.Tuple2;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
 
-public class SurfaceObservable implements TextureView.SurfaceTextureListener, ObservableOnSubscribe<Surface> {
+public class SurfaceObservable {
 
     public interface SurfaceFactory {
 
         Surface create(SurfaceTexture surfaceTexture);
     }
 
-    protected static Observable<Surface> create(WindowManager windowManager, TextureView textureView,
-                                                Handler mainHandler, SurfaceFactory surfaceFactory) {
-        return Observable.create(new SurfaceObservable(windowManager, textureView, mainHandler, surfaceFactory));
+    public static Observable<Surface> create(
+            Observable<Tuple2<Callback, SurfaceTexture>> surfaceTextureObservable, SurfaceFactory surfaceFactory) {
+
+        return Observable.using(
+                () -> new Surface[]{null},
+                (ref) -> surfaceTextureObservable
+                        .filter(tuple -> Callback.AVAILABLE.equals(tuple.t1))
+                        .map(tuple -> (ref[0] = surfaceFactory.create(tuple.t2))),
+                (ref) -> releaseIfNotNull(ref[0])
+        );
     }
 
-    private final WindowManager windowManager;
-    private final TextureView textureView;
-    private final SurfaceFactory surfaceFactory;
-    private final Handler mainHandler;
-    private volatile Surface surface;
-    private volatile ObservableEmitter<Surface> observableEmitter;
-    private int currentRotation = 0;
-
-    private SurfaceObservable(WindowManager windowManager, TextureView textureView, Handler mainHandler, SurfaceFactory surfaceFactory) {
-        this.windowManager = windowManager;
-        this.textureView = textureView;
-        this.mainHandler = mainHandler;
-        this.surfaceFactory = surfaceFactory;
-    }
-
-    @Override
-    public void subscribe(ObservableEmitter<Surface> emitter) {
-        observableEmitter = emitter;
-        if (!observableEmitter.isDisposed()) {
-            observableEmitter.setCancellable(() -> {
-                textureView.setSurfaceTextureListener(null);
-                if (surface != null) {
-                    surface.release();
-                }
-            });
-            textureView.setSurfaceTextureListener(this);
-            if (textureView.isAvailable()) {
-                mainHandler.post(() -> onSurfaceTextureAvailable(textureView.getSurfaceTexture(), 0, 0));
-            }
-        }
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-        if (surfaceTexture != null && observableEmitter != null && !observableEmitter.isDisposed()) {
-            surface = surfaceFactory.create(surfaceTexture);
-            observableEmitter.onNext(surface);
-        } else {
-            textureView.setSurfaceTextureListener(null);
-        }
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-        observableEmitter.onComplete();
-        return true;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-        int rotation = windowManager.getDefaultDisplay().getRotation();
-        if (rotation != currentRotation) {
-            currentRotation = rotation;
-            Matrix matrix = new Matrix();
-            matrix.postRotate(-90 * currentRotation, textureView.getWidth() / 2f, textureView.getHeight() / 2f);
-            textureView.setTransform(matrix);
+    private static void releaseIfNotNull(Surface surface) {
+        if (surface != null) {
+            surface.release();
         }
     }
 }
