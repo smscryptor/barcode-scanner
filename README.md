@@ -10,8 +10,17 @@ The project can be built using the standard gradle build process:
 `./gradlew assembleRelease`
 
 ## Usage
-Start by defining the dependency in your _build.gradle_ file:
-`compile 'com.aevi.barcode:barcode-scanner:2.0.0'`
+In your main gradle.build you'll need to include the following public bintray in your main repositories section:
+```
+repositories {
+    maven {
+        url "http://dl.bintray.com/aevi/aevi-uk"
+    }
+}
+```
+
+then, add the dependency to your relevant module _build.gradle_ file:
+```implementation 'com.aevi.barcode:barcode-scanner:<version>'```
 
 ### Camera preview
 To create a camera preview in your activity / fragment, simply use the dedicated `Camera2Preview` view, you can embed it directly in your layout file:
@@ -42,3 +51,8 @@ public void onPause() {
     disposable.dispose();
 }
 ```
+
+## License
+This library is licensed under the [LGPL license](LICENSE)
+
+Copyright (c) 2019 AEVI International GmbH. All rights reserved

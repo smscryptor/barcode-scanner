@@ -1,8 +1,5 @@
 apply plugin: 'com.android.library'
-
-apply from: "../artifacts.gradle"
-apply from: "../publish-repo.gradle"
-apply from: "../publish-repo-android.gradle"
+apply from: '../bintray.gradle'
 
 ext.applicationName = name
 ext.artifactIdPrefix = "barcode-scanner"
@@ -52,7 +49,6 @@ android {
 }
 
 dependencies {
-    implementation domainDependencies.rxJava
     implementation domainDependencies.rxAndroid
     testImplementation testDependencies.junit
     testImplementation testDependencies.mockito

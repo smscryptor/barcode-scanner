@@ -1,0 +1,31 @@
+apply plugin: 'com.jfrog.bintray'
+apply from: '../publish.gradle'
+
+bintray {
+    if (System.getenv("BINTRAY_USER") != null && System.getenv("BINTRAY_KEY") != null) {
+        user = System.getenv("BINTRAY_USER")
+        key = System.getenv("BINTRAY_KEY")
+    }
+
+    publications = ["release"]
+    override = true
+
+    pkg {
+        dryRun = false
+        publish = true
+        repo = 'aevi-uk'
+        name = project.name
+        userOrg = 'aevi'
+        licenses = ['LGPL-2.1']
+        labels = ['android', 'qrcode']
+        websiteUrl = 'https://github.com/Aevi-UK/barcode-scanner'
+        vcsUrl = 'https://github.com/Aevi-UK/barcode-scanner.git'
+        issueTrackerUrl = 'https://github.com/Aevi-UK/barcode-scanner/issues'
+        publicDownloadNumbers = true
+        version {
+            name = project.getVersionName()
+            vcsTag = project.sha
+            desc = "QR code scanning library"
+        }
+    }
+}
